@@ -10,22 +10,25 @@ import {
     Legend
 } from 'recharts';
 
-export default function AssetChart({ transactions, asset }) {
+export default function BNAssetChart({ transactions, asset }) {
     const chartData = useMemo(() => {
         if (!transactions || transactions.length === 0) return [];
 
-        // Filter by asset and sort by date
+        // Filter by asset and BN data, sort by date
         const filtered = transactions
-            .filter(tx => tx.asset === asset && tx.price_at_purchase)
+            .filter(tx => tx.asset === asset && tx.participation_value && tx.number_of_participations)
             .sort((a, b) => new Date(a.transaction_date) - new Date(b.transaction_date));
 
-        let totalQty = 0;
-        let totalCost = 0;
+        let totalParticipations = 0;
+        let totalInvested = 0;
 
         return filtered.map(tx => {
-            totalQty += parseFloat(tx.quantity);
-            totalCost += parseFloat(tx.price_at_purchase) * parseFloat(tx.quantity);
-            const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
+            const participations = parseFloat(tx.number_of_participations);
+            const value = parseFloat(tx.participation_value);
+
+            totalParticipations += participations;
+            totalInvested += value * participations;
+            const avgCost = totalParticipations > 0 ? totalInvested / totalParticipations : 0;
 
             return {
                 date: new Date(tx.transaction_date).toLocaleDateString('en-US', {
@@ -33,13 +36,12 @@ export default function AssetChart({ transactions, asset }) {
                     day: 'numeric',
                     year: '2-digit'
                 }),
-                price: parseFloat(tx.price_at_purchase),
+                participationValue: value,
                 avgCost: parseFloat(avgCost.toFixed(2)),
-                quantity: parseFloat(tx.quantity)
+                participations: participations
             };
         });
     }, [transactions, asset]);
-
 
 
     if (chartData.length === 0) {
@@ -51,17 +53,17 @@ export default function AssetChart({ transactions, asset }) {
                 background: 'rgba(0,0,0,0.2)',
                 borderRadius: '8px'
             }}>
-                No transactions with price data for {asset}
+                No Banco Nacional data for {asset}
             </div>
         );
     }
 
-    // Calculate Y-axis domain with $20 padding
-    const prices = chartData.map(d => d.price);
+    // Calculate Y-axis domain with 0.25 padding
+    const values = chartData.map(d => d.participationValue);
     const avgCosts = chartData.map(d => d.avgCost);
-    const allValues = [...prices, ...avgCosts];
-    const minValue = Math.floor(Math.min(...allValues) - 20);
-    const maxValue = Math.ceil(Math.max(...allValues) + 20);
+    const allValues = [...values, ...avgCosts];
+    const minValue = Math.min(...allValues) - 0.25;
+    const maxValue = Math.max(...allValues) + 0.25;
 
     return (
         <div style={{ width: '100%', height: 350, minHeight: 350 }}>
@@ -76,7 +78,7 @@ export default function AssetChart({ transactions, asset }) {
                     <YAxis
                         stroke="var(--text-muted)"
                         tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                        tickFormatter={(value) => `$${value.toLocaleString()}`}
+                        tickFormatter={(value) => value.toLocaleString()}
                         domain={[minValue, maxValue]}
                     />
                     <Tooltip
@@ -87,18 +89,18 @@ export default function AssetChart({ transactions, asset }) {
                             color: '#fff'
                         }}
                         formatter={(value, name) => [
-                            `$${value.toLocaleString()}`,
+                            value.toLocaleString(),
                             name
                         ]}
                     />
                     <Legend />
                     <Line
                         type="monotone"
-                        dataKey="price"
-                        stroke="#6366f1"
+                        dataKey="participationValue"
+                        stroke="#8b5cf6"
                         strokeWidth={2}
-                        dot={{ fill: '#6366f1', strokeWidth: 2, r: 4 }}
-                        name="Purchase Price"
+                        dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+                        name="Participation Value"
                     />
                     <Line
                         type="monotone"
@@ -107,7 +109,7 @@ export default function AssetChart({ transactions, asset }) {
                         strokeWidth={2}
                         strokeDasharray="5 5"
                         dot={false}
-                        name="Running Avg Cost"
+                        name="Running Avg Participation Value"
                     />
                 </LineChart>
             </ResponsiveContainer>
