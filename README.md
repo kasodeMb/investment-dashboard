@@ -16,6 +16,10 @@ A modern web application for tracking S&P 500 and Bitcoin investments with real-
   - Total invested, current value, and unrealized gains
   - Compounded annual commission calculations
   - Per-asset breakdown with expandable details
+- **Historical Charts**: 
+  - Price history graphs for S&P 500 and Bitcoin
+  - Banco Nacional participation value charts
+  - Running average cost visualization
 - **Banco Nacional Support**: Track Costa Rican participation funds with custom metrics
 - **Premium UI**: Dark theme with glassmorphism design and smooth animations
 
@@ -23,7 +27,7 @@ A modern web application for tracking S&P 500 and Bitcoin investments with real-
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, Vite |
+| Frontend | React 18, Vite, React Router, Recharts |
 | Backend | Node.js, Express |
 | Database | MySQL 8.0 |
 | Infrastructure | Docker Compose |
@@ -88,6 +92,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 investment-dashboard/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
+│   ├── pages/              # Route pages (Dashboard, Charts)
 │   ├── services/           # API client
 │   └── index.css           # Global styles
 ├── server/                 # Express backend
