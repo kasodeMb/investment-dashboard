@@ -3,14 +3,15 @@ import { pool } from '../index.js';
 
 const router = express.Router();
 
-// GET settings
+// GET settings for the authenticated user
 router.get('/', async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM settings WHERE id = 1');
+        const [rows] = await pool.query('SELECT * FROM settings WHERE user_id = ?', [req.user.id]);
 
         if (rows.length === 0) {
-            await pool.query('INSERT INTO settings (id, annual_commission_percent) VALUES (1, 0.00)');
-            return res.json({ id: 1, annual_commission_percent: 0 });
+            // Create default settings for this user
+            await pool.query('INSERT INTO settings (user_id, annual_commission_percent) VALUES (?, 0.00)', [req.user.id]);
+            return res.json({ user_id: req.user.id, annual_commission_percent: 0 });
         }
 
         res.json(rows[0]);
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// PUT update settings
+// PUT update settings for the authenticated user
 router.put('/', async (req, res) => {
     const { annual_commission_percent } = req.body;
 
@@ -34,12 +35,12 @@ router.put('/', async (req, res) => {
 
     try {
         await pool.query(
-            `INSERT INTO settings (id, annual_commission_percent) VALUES (1, ?)
-       ON DUPLICATE KEY UPDATE annual_commission_percent = ?`,
-            [annual_commission_percent, annual_commission_percent]
+            `INSERT INTO settings (user_id, annual_commission_percent) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE annual_commission_percent = ?`,
+            [req.user.id, annual_commission_percent, annual_commission_percent]
         );
 
-        const [updated] = await pool.query('SELECT * FROM settings WHERE id = 1');
+        const [updated] = await pool.query('SELECT * FROM settings WHERE user_id = ?', [req.user.id]);
         res.json(updated[0]);
     } catch (error) {
         console.error('Error updating settings:', error);

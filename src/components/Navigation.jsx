@@ -1,6 +1,9 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navigation() {
+    const { user, logout } = useAuth();
+
     return (
         <nav style={{
             display: 'flex',
@@ -11,7 +14,8 @@ export default function Navigation() {
             position: 'sticky',
             top: 0,
             zIndex: 100,
-            backdropFilter: 'blur(10px)'
+            backdropFilter: 'blur(10px)',
+            alignItems: 'center'
         }}>
             <NavLink
                 to="/"
@@ -43,6 +47,18 @@ export default function Navigation() {
             >
                 📈 Charts
             </NavLink>
+
+            {user && (
+                <div className="user-menu">
+                    {user.picture && (
+                        <img src={user.picture} alt={user.name} className="user-avatar" />
+                    )}
+                    <span className="user-name">{user.name}</span>
+                    <button onClick={logout} className="logout-btn">
+                        Logout
+                    </button>
+                </div>
+            )}
         </nav>
     );
 }

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mysql:
@@ -20,6 +20,53 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - investment-network
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: investment-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-investments}
+      - DB_USER=${DB_USER:-investment_user}
+      - DB_PASSWORD=${DB_PASSWORD:-investment_pass}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL:-http://localhost:3001/api/auth/google/callback}
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-15m}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - investment-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: investment-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - investment-network
+
+networks:
+  investment-network:
+    driver: bridge
 
 volumes:
   mysql_data:

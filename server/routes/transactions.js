@@ -4,11 +4,12 @@ import { getHistoricalPrice } from '../services/priceService.js';
 
 const router = express.Router();
 
-// GET all transactions
+// GET all transactions for the authenticated user
 router.get('/', async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT * FROM transactions ORDER BY transaction_date DESC'
+            'SELECT * FROM transactions WHERE user_id = ? ORDER BY transaction_date DESC',
+            [req.user.id]
         );
         res.json(rows);
     } catch (error) {
@@ -17,12 +18,12 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET single transaction
+// GET single transaction (only if owned by user)
 router.get('/:id', async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT * FROM transactions WHERE id = ?',
-            [req.params.id]
+            'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+            [req.params.id, req.user.id]
         );
 
         if (rows.length === 0) {
@@ -36,7 +37,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// POST create transaction
+// POST create transaction for the authenticated user
 router.post('/', async (req, res) => {
     const { asset, transaction_date, amount_usd, price_at_purchase, quantity, is_fallback_price, participation_value, number_of_participations } = req.body;
 
@@ -50,9 +51,9 @@ router.post('/', async (req, res) => {
 
     try {
         const [result] = await pool.query(
-            `INSERT INTO transactions (asset, transaction_date, amount_usd, price_at_purchase, quantity, is_fallback_price, participation_value, number_of_participations)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [asset, transaction_date, amount_usd, price_at_purchase, quantity, is_fallback_price ? 1 : 0, participation_value || null, number_of_participations || null]
+            `INSERT INTO transactions (user_id, asset, transaction_date, amount_usd, price_at_purchase, quantity, is_fallback_price, participation_value, number_of_participations)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.user.id, asset, transaction_date, amount_usd, price_at_purchase, quantity, is_fallback_price ? 1 : 0, participation_value || null, number_of_participations || null]
         );
 
         const [newTransaction] = await pool.query(
@@ -67,14 +68,14 @@ router.post('/', async (req, res) => {
     }
 });
 
-// PUT update transaction
+// PUT update transaction (only if owned by user)
 router.put('/:id', async (req, res) => {
     const { asset, transaction_date, amount_usd, price_at_purchase, quantity, is_fallback_price, participation_value, number_of_participations } = req.body;
 
     try {
         const [existing] = await pool.query(
-            'SELECT * FROM transactions WHERE id = ?',
-            [req.params.id]
+            'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+            [req.params.id, req.user.id]
         );
 
         if (existing.length === 0) {
@@ -84,7 +85,7 @@ router.put('/:id', async (req, res) => {
         await pool.query(
             `UPDATE transactions 
              SET asset = ?, transaction_date = ?, amount_usd = ?, price_at_purchase = ?, quantity = ?, is_fallback_price = ?, participation_value = ?, number_of_participations = ?
-             WHERE id = ?`,
+             WHERE id = ? AND user_id = ?`,
             [
                 asset || existing[0].asset,
                 transaction_date || existing[0].transaction_date,
@@ -94,7 +95,8 @@ router.put('/:id', async (req, res) => {
                 is_fallback_price !== undefined ? (is_fallback_price ? 1 : 0) : existing[0].is_fallback_price,
                 participation_value !== undefined ? (participation_value || null) : existing[0].participation_value,
                 number_of_participations !== undefined ? (number_of_participations || null) : existing[0].number_of_participations,
-                req.params.id
+                req.params.id,
+                req.user.id
             ]
         );
 
@@ -110,12 +112,12 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-// POST refresh price for a transaction (retry historical price fetch)
+// POST refresh price for a transaction (only if owned by user)
 router.post('/:id/refresh-price', async (req, res) => {
     try {
         const [existing] = await pool.query(
-            'SELECT * FROM transactions WHERE id = ?',
-            [req.params.id]
+            'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+            [req.params.id, req.user.id]
         );
 
         if (existing.length === 0) {
@@ -134,8 +136,8 @@ router.post('/:id/refresh-price', async (req, res) => {
             await pool.query(
                 `UPDATE transactions 
                  SET price_at_purchase = ?, quantity = ?, is_fallback_price = 0
-                 WHERE id = ?`,
-                [result.price, newQuantity, req.params.id]
+                 WHERE id = ? AND user_id = ?`,
+                [result.price, newQuantity, req.params.id, req.user.id]
             );
 
             const [updated] = await pool.query(
@@ -153,19 +155,19 @@ router.post('/:id/refresh-price', async (req, res) => {
     }
 });
 
-// DELETE transaction
+// DELETE transaction (only if owned by user)
 router.delete('/:id', async (req, res) => {
     try {
         const [existing] = await pool.query(
-            'SELECT * FROM transactions WHERE id = ?',
-            [req.params.id]
+            'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
+            [req.params.id, req.user.id]
         );
 
         if (existing.length === 0) {
             return res.status(404).json({ error: 'Transaction not found' });
         }
 
-        await pool.query('DELETE FROM transactions WHERE id = ?', [req.params.id]);
+        await pool.query('DELETE FROM transactions WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
         res.json({ message: 'Transaction deleted successfully' });
     } catch (error) {
         console.error('Error deleting transaction:', error);

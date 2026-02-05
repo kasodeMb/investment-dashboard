@@ -4,12 +4,14 @@ import { getCurrentPrice } from '../services/priceService.js';
 
 const router = express.Router();
 
-// GET portfolio summary with compounded commission (Option C)
+// GET portfolio summary with compounded commission (per-user)
 router.get('/summary', async (req, res) => {
     try {
+        // Get only this user's transactions
         const [allTransactions] = await pool.query(`
-      SELECT id, asset, transaction_date, amount_usd, quantity FROM transactions
-    `);
+            SELECT id, asset, transaction_date, amount_usd, quantity FROM transactions
+            WHERE user_id = ?
+        `, [req.user.id]);
 
         // Get current prices
         const currentPrices = {};
@@ -24,8 +26,8 @@ router.get('/summary', async (req, res) => {
             console.error('Error fetching current prices:', error);
         }
 
-        // Get commission settings
-        const [settings] = await pool.query('SELECT annual_commission_percent FROM settings WHERE id = 1');
+        // Get this user's commission settings
+        const [settings] = await pool.query('SELECT annual_commission_percent FROM settings WHERE user_id = ?', [req.user.id]);
         const commissionPercent = settings.length > 0 ? parseFloat(settings[0].annual_commission_percent) : 0;
 
         // Calculate per-transaction values with compounded commission based on years held
