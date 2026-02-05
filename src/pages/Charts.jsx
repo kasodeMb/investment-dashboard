@@ -23,7 +23,7 @@ export default function Charts() {
         loadTransactions();
     }, []);
 
-    // Get unique BN assets
+    // Get unique BN assets (sorted: SP500 first, then others)
     const bnAssets = useMemo(() => {
         const assets = new Set();
         transactions.forEach(tx => {
@@ -31,7 +31,11 @@ export default function Charts() {
                 assets.add(tx.asset);
             }
         });
-        return Array.from(assets);
+        return Array.from(assets).sort((a, b) => {
+            if (a === 'SP500') return -1;
+            if (b === 'SP500') return 1;
+            return a.localeCompare(b);
+        });
     }, [transactions]);
 
     // Set default BN asset on load
@@ -127,7 +131,7 @@ export default function Charts() {
                                         className={`btn ${selectedBNAsset === asset ? 'btn-primary' : 'btn-secondary'}`}
                                         onClick={() => setSelectedBNAsset(asset)}
                                     >
-                                        {asset}
+                                        {asset === 'SP500' ? 'S&P 500' : asset === 'BITCOIN' ? 'Bitcoin' : asset}
                                     </button>
                                 ))}
                             </div>
